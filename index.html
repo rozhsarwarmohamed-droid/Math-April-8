@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Broken Stopwatch — Cambridge Primary Mathematics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* ── Self-contained colour tokens (light + dark) ── */
+  :root {
+    --color-background-primary:   #ffffff;
+    --color-background-secondary: #f5f5f7;
+    --color-background-tertiary:  #ebebed;
+
+    --color-text-primary:   #1a1a1c;
+    --color-text-secondary: #525258;
+    --color-text-tertiary:  #8e8e96;
+
+    --color-border-primary:   #d2d2d7;
+    --color-border-secondary: #d2d2d7;
+    --color-border-tertiary:  #e0e0e5;
+
+    /* info = blue */
+    --color-background-info: #e8f0fe;
+    --color-text-info:       #1a56db;
+    --color-border-info:     #a4c0f8;
+
+    /* success = green */
+    --color-background-success: #e6f4ea;
+    --color-text-success:       #1e7e34;
+    --color-border-success:     #82c995;
+
+    /* warning = amber (segment colour) */
+    --color-text-warning: #c87000;
+    --color-text-danger:  #c0392b;
+
+    --border-radius-sm: 6px;
+    --border-radius-md: 10px;
+    --border-radius-lg: 14px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-background-primary:   #1c1c1e;
+      --color-background-secondary: #2c2c2e;
+      --color-background-tertiary:  #3a3a3c;
+
+      --color-text-primary:   #f2f2f7;
+      --color-text-secondary: #aeaeb2;
+      --color-text-tertiary:  #636366;
+
+      --color-border-primary:   #3a3a3c;
+      --color-border-secondary: #3a3a3c;
+      --color-border-tertiary:  #48484a;
+
+      --color-background-info: #1c3461;
+      --color-text-info:       #74aaf8;
+      --color-border-info:     #2f5096;
+
+      --color-background-success: #0d3320;
+      --color-text-success:       #4caf72;
+      --color-border-success:     #266840;
+
+      --color-text-warning: #ffaa44;
+      --color-text-danger:  #ff6b6b;
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: var(--color-background-primary);
+    color: var(--color-text-primary);
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+
+  .page-wrap {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  /* ── reused component styles (unchanged logic) ── */
+  .lseg { transition: fill .2s }
+  .ldb {
+    min-width: 52px; height: 52px;
+    border-radius: 10px;
+    border: .5px solid var(--color-border-secondary);
+    background: var(--color-background-secondary);
+    color: var(--color-text-primary);
+    font-size: 22px; font-weight: 500;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .13s;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    font-family: 'DM Mono', monospace;
+  }
+  .ldb:active { transform: scale(.9) }
+  .ldb.sel    { border: 1.5px solid var(--color-border-info); background: var(--color-background-info); color: var(--color-text-info) }
+  .ldb.found5 { border: 1.5px solid var(--color-border-success); background: var(--color-background-success); color: var(--color-text-success) }
+
+  .ltb {
+    flex: 1; padding: 12px 6px;
+    border-radius: 10px;
+    border: .5px solid var(--color-border-secondary);
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: all .15s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .ltb.on { background: var(--color-background-info); color: var(--color-text-info); border-color: var(--color-border-info) }
+
+  .lcard {
+    padding: 14px 8px;
+    border-radius: 12px;
+    border: .5px solid var(--color-border-tertiary);
+    background: var(--color-background-secondary);
+    text-align: center; cursor: pointer;
+    transition: all .2s;
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .lcard:active { transform: scale(.93) }
+  @media (prefers-reduced-motion: no-preference) {
+    .lcard.magic { animation: magicpop .4s ease }
+  }
+  @keyframes magicpop { 0%{transform:scale(1)} 50%{transform:scale(1.07)} 100%{transform:scale(1)} }
+  .lcard.magic { border: 2px solid var(--color-border-success); background: var(--color-background-success) }
+
+  .lbadge {
+    display: inline-block; padding: 2px 8px;
+    border-radius: 20px; font-size: 11px; font-weight: 500;
+    background: var(--color-background-info); color: var(--color-text-info);
+  }
+  .lbadge.ok { background: var(--color-background-success); color: var(--color-text-success) }
+
+  .lbtn {
+    padding: 10px 14px;
+    border-radius: var(--border-radius-md);
+    border: .5px solid var(--color-border-secondary);
+    background: transparent; color: var(--color-text-secondary);
+    font-size: 13px; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .lbtn.info { background: var(--color-background-info); color: var(--color-text-info); border-color: var(--color-border-info) }
+
+  .chip {
+    width: 50px; height: 50px;
+    border-radius: 9px;
+    border: 1.5px solid var(--color-border-success);
+    color: var(--color-text-success);
+    font-size: 22px; font-weight: 500;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    background: var(--color-background-primary);
+    transition: transform .13s;
+    -webkit-tap-highlight-color: transparent;
+    font-family: 'DM Mono', monospace;
+  }
+  .chip:active { transform: scale(.9) }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+<h2 class="sr-only">Broken stopwatch light bar challenge — Cambridge Primary Mathematics interactive activity</h2>
+
+<div style="background:var(--color-background-secondary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px 16px;margin-bottom:14px;display:flex;gap:13px;align-items:center">
+  <div style="width:42px;height:42px;flex-shrink:0;border-radius:50%;background:var(--color-background-info);display:flex;align-items:center;justify-content:center">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-info)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/><path d="M10 2h4"/><path d="M12 2v3"/></svg>
+  </div>
+  <div>
+    <div style="font-size:10px;color:var(--color-text-tertiary);letter-spacing:.07em;text-transform:uppercase;margin-bottom:2px">Cambridge Primary Mathematics</div>
+    <div style="font-size:16px;font-weight:600;color:var(--color-text-primary)">Think like a mathematician — broken stopwatch</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">This digital stopwatch is broken. Every time it switches on, only some light bars work.</div>
+  </div>
+</div>
+
+<div style="display:flex;gap:8px;margin-bottom:18px">
+  <button class="ltb on" id="tb-a" onclick="setTab('a')">Part A — 5 light bars</button>
+  <button class="ltb" id="tb-b" onclick="setTab('b')">Part B — magic numbers</button>
+</div>
+
+<!-- ── Part A ── -->
+<div id="pn-a">
+  <div style="font-size:13px;color:var(--color-text-secondary);background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:11px 14px;border:.5px solid var(--color-border-tertiary);margin-bottom:14px">
+    Every time the stopwatch switches on, only <strong style="color:var(--color-text-primary)">five light bars</strong> work. Tap each digit — what numbers could it show?
+  </div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
+    <div style="flex:0 0 auto">
+      <div style="background:var(--color-background-secondary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:18px;display:inline-flex;flex-direction:column;align-items:center;gap:12px">
+        <svg id="msvg" width="108" height="190" viewBox="0 0 120 212" style="display:block" aria-label="Seven-segment digit display"></svg>
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--color-text-tertiary);margin-bottom:2px">bars lit</div>
+          <div id="bnum" style="font-size:50px;font-weight:500;line-height:1;transition:color .2s;color:var(--color-text-tertiary);font-family:'DM Mono',monospace">—</div>
+        </div>
+      </div>
+    </div>
+    <div style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:12px">
+      <div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px;font-weight:500">Tap a digit to show it:</div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px" id="dbg" role="group" aria-label="Digit selector"></div>
+      </div>
+      <div style="border-radius:var(--border-radius-md);border:.5px solid var(--color-border-success);background:var(--color-background-success);padding:12px">
+        <div style="font-size:11px;color:var(--color-text-success);font-weight:500;margin-bottom:8px">Digits using exactly 5 bars (tap to discover):</div>
+        <div id="f5" style="display:flex;flex-wrap:wrap;gap:8px;min-height:50px" role="list" aria-label="Discovered 5-bar digits"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="lbtn" onclick="showHintA()">Show hint</button>
+        <button class="lbtn info" onclick="revealA()">Reveal answers</button>
+      </div>
+      <div id="hint-a" style="display:none;font-size:12px;color:var(--color-text-secondary);background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px;border:.5px solid var(--color-border-tertiary)">
+        Hint: try the digits 2, 3, and 5. Count the lit bars on each one carefully!
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Part B ── -->
+<div id="pn-b" style="display:none">
+  <div style="font-size:13px;color:var(--color-text-secondary);background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:11px 14px;border:.5px solid var(--color-border-tertiary);margin-bottom:14px">
+    Investigate all numbers of light bars. Is there a number where the bar count equals the digit itself? Tap each card and compare. How many can you find?
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px" id="bgrid" role="list" aria-label="All digits with bar counts"></div>
+  <div id="bsumm" style="display:none;border-radius:var(--border-radius-md);border:.5px solid var(--color-border-success);background:var(--color-background-success);padding:14px">
+    <div style="font-size:13px;font-weight:600;color:var(--color-text-success);margin-bottom:4px">Magic numbers discovered!</div>
+    <div style="font-size:13px;color:var(--color-text-success)">Digits <strong>4</strong>, <strong>5</strong>, and <strong>6</strong> each use the same number of bars as their own digit value. They are the only single digits with this special property!</div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:12px">
+    <button class="lbtn" onclick="showHintB()">Show hint</button>
+    <button class="lbtn info" onclick="revealB()">Reveal magic numbers</button>
+  </div>
+  <div id="hint-b" style="display:none;font-size:12px;color:var(--color-text-secondary);background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px;border:.5px solid var(--color-border-tertiary);margin-top:8px">
+    Hint: for each card, compare the bar count to the digit. Does 4 use 4 bars? Does 5 use 5 bars? What about 6?
+  </div>
+</div>
+
+</div><!-- /page-wrap -->
+
+<script>
+(function(){
+  const SP={
+    a:'M19,8L101,8L106,13L106,17L101,22L19,22L14,17L14,13Z',
+    b:'M102,21L107,16L111,16L116,21L116,81L111,86L107,86L102,81Z',
+    c:'M102,117L107,112L111,112L116,117L116,177L111,182L107,182L102,177Z',
+    d:'M19,190L101,190L106,195L106,199L101,204L19,204L14,199L14,195Z',
+    e:'M4,117L9,112L13,112L18,117L18,177L13,182L9,182L4,177Z',
+    f:'M4,21L9,16L13,16L18,21L18,81L13,86L9,86L4,81Z',
+    g:'M19,94L101,94L106,99L106,103L101,108L19,108L14,103L14,99Z'
+  };
+  const DS={0:'abcdef',1:'bc',2:'abdeg',3:'abcdg',4:'bcfg',5:'acdfg',6:'acdefg',7:'abc',8:'abcdefg',9:'abcdfg'};
+  const BC={};
+  for(let d=0;d<10;d++) BC[d]=DS[d].length;
+  let found=new Set();
+
+  function buildSvgSegs(svgEl,pfx){
+    svgEl.innerHTML='';
+    for(const[s,path]of Object.entries(SP)){
+      const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+      p.setAttribute('d',path);
+      p.setAttribute('id',pfx+s);
+      p.setAttribute('fill','var(--color-border-tertiary)');
+      p.style.transition='fill .2s';
+      svgEl.appendChild(p);
+    }
+  }
+
+  function paintDigit(pfx,d){
+    const segs=DS[d];
+    for(const s of 'abcdefg'){
+      const el=document.getElementById(pfx+s);
+      if(el) el.setAttribute('fill',segs.includes(s)?'var(--color-text-warning)':'var(--color-border-tertiary)');
+    }
+  }
+
+  const msvg=document.getElementById('msvg');
+  buildSvgSegs(msvg,'ms-');
+
+  function showOnMain(d){
+    paintDigit('ms-',d);
+    const count=BC[d];
+    const bn=document.getElementById('bnum');
+    bn.textContent=count;
+    bn.style.color=count===5?'var(--color-text-success)':count>5?'var(--color-text-danger)':'var(--color-text-primary)';
+
+    document.querySelectorAll('.ldbtn').forEach(b=>{
+      const bd=+b.dataset.d;
+      b.classList.toggle('sel',bd===d&&!found.has(bd));
+      b.classList.toggle('found5',found.has(bd));
+    });
+
+    if(count===5){
+      found.add(d);
+      updateFound5();
+      document.querySelectorAll('.ldbtn').forEach(b=>{
+        const bd=+b.dataset.d;
+        b.classList.remove('sel');
+        b.classList.toggle('found5',found.has(bd));
+      });
+    }
+  }
+
+  function updateFound5(){
+    const el=document.getElementById('f5');
+    el.innerHTML='';
+    [...found].sort((a,b)=>a-b).forEach(d=>{
+      const chip=document.createElement('div');
+      chip.className='chip';
+      chip.textContent=d;
+      chip.title='Digit '+d+' uses 5 bars';
+      chip.setAttribute('role','listitem');
+      chip.onclick=()=>showOnMain(d);
+      el.appendChild(chip);
+    });
+  }
+
+  window.revealA=function(){
+    [2,3,5].forEach(d=>found.add(d));
+    updateFound5();
+    document.querySelectorAll('.ldbtn').forEach(b=>{b.classList.toggle('found5',found.has(+b.dataset.d));b.classList.remove('sel');});
+  };
+  window.showHintA=function(){document.getElementById('hint-a').style.display='block';};
+  window.showHintB=function(){document.getElementById('hint-b').style.display='block';};
+  window.revealB=function(){document.getElementById('bsumm').style.display='block';};
+  window.setTab=function(t){
+    document.getElementById('pn-a').style.display=t==='a'?'block':'none';
+    document.getElementById('pn-b').style.display=t==='b'?'block':'none';
+    document.getElementById('tb-a').classList.toggle('on',t==='a');
+    document.getElementById('tb-b').classList.toggle('on',t==='b');
+  };
+
+  /* digit buttons */
+  const dbg=document.getElementById('dbg');
+  for(let d=0;d<10;d++){
+    const btn=document.createElement('button');
+    btn.className='ldb ldbtn';
+    btn.dataset.d=d;
+    btn.textContent=d;
+    btn.setAttribute('aria-label','Show digit '+d);
+    btn.onclick=()=>showOnMain(d);
+    dbg.appendChild(btn);
+  }
+
+  /* Part B grid */
+  const bgrid=document.getElementById('bgrid');
+  for(let d=0;d<10;d++){
+    const bars=BC[d];
+    const isM=bars===d;
+    const card=document.createElement('div');
+    card.className='lcard'+(isM?' magic':'');
+    card.setAttribute('role','listitem');
+    card.setAttribute('aria-label','Digit '+d+', uses '+bars+' bars'+(isM?', magic number':''));
+    card.onclick=()=>{if(isM)document.getElementById('bsumm').style.display='block';};
+
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('width','44');svg.setAttribute('height','78');svg.setAttribute('viewBox','0 0 120 212');
+    svg.setAttribute('aria-hidden','true');
+    const segs=DS[d];
+    for(const[s,path]of Object.entries(SP)){
+      const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+      p.setAttribute('d',path);
+      p.setAttribute('fill',segs.includes(s)?'var(--color-text-warning)':'var(--color-border-tertiary)');
+      svg.appendChild(p);
+    }
+
+    const dlab=document.createElement('div');
+    dlab.style.cssText='font-size:20px;font-weight:500;color:var(--color-text-primary);font-family:"DM Mono",monospace';
+    dlab.textContent=d;
+
+    const badge=document.createElement('div');
+    badge.className='lbadge'+(isM?' ok':'');
+    badge.textContent=bars+' bars';
+
+    card.appendChild(svg);card.appendChild(dlab);card.appendChild(badge);
+
+    if(isM){
+      const ml=document.createElement('div');
+      ml.style.cssText='font-size:10px;font-weight:500;color:var(--color-text-success)';
+      ml.textContent='bars = digit';
+      card.appendChild(ml);
+    }
+    bgrid.appendChild(card);
+  }
+})();
+</script>
+</body>
+</html>
